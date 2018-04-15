@@ -80,7 +80,12 @@ void TFT_eSPI::loadFont(String fontName)
 
   fontFile = SPIFFS.open( _gFontFilename, "r");
 
-  if(!fontFile) return;
+
+  if (!fontFile) {
+    Serial.print("Failed to load font ");
+    Serial.println(_gFontFilename);
+    return;
+  }
 
   fontFile.seek(0, fs::SeekSet);
 
