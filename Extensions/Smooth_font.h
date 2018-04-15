@@ -4,7 +4,7 @@
  public:
 
   // These are for the new antialiased fonts
-  void     loadFont(String fontName);
+  bool     loadFont(String fontName);
   void     unloadFont( void );
   bool     getUnicodeIndex(uint16_t unicode, uint16_t *index);
 

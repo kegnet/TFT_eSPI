@@ -10,7 +10,7 @@
 ** Function name:           loadFont
 ** Description:             loads parameters from a new font vlw file stored in SPIFFS
 *************************************************************************************x*/
-void TFT_eSPI::loadFont(String fontName)
+bool TFT_eSPI::loadFont(String fontName)
 {
   /*
     The vlw font format does not appear to be documented anywhere, so some reverse
@@ -80,12 +80,8 @@ void TFT_eSPI::loadFont(String fontName)
 
   fontFile = SPIFFS.open( _gFontFilename, "r");
 
-
-  if (!fontFile) {
-    Serial.print("Failed to load font ");
-    Serial.println(_gFontFilename);
-    return;
-  }
+  if (!fontFile)
+    return false;
 
   fontFile.seek(0, fs::SeekSet);
 
@@ -108,6 +104,7 @@ void TFT_eSPI::loadFont(String fontName)
   loadMetrics(gFont.gCount);
 
   //fontFile.close();
+  return true;
 }
 
 
