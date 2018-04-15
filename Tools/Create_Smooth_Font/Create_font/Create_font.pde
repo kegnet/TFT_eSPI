@@ -103,7 +103,7 @@ import java.awt.Desktop;
 //                                                  the font numbers are listed when the sketch is run.
 //                |         1         2     |       Maximum filename size for SPIFFS is 32 including leading /
 //                 1234567890123456789012345        and added point size and .vlw extension, so max is 25
-String fontName = "Final-Frontier";  //Manually crop the filename length later after creation if needed
+String fontName = "roboto";  //Manually crop the filename length later after creation if needed
 
 String fontType = ".ttf";            //SPIFFS does not accept underscore in filename!
 //String fontType = ".otf";
@@ -112,10 +112,10 @@ String fontType = ".ttf";            //SPIFFS does not accept underscore in file
 int fontNumber = -1; // << Use [Number] in brackets from the fonts listed in console window
 
 // Define the font size in points for the created font file
-int  fontSize = 28;
+int  fontSize = 30;
 
 // Font size to use in the Processing sketch display window that pops up (can be different to above)
-int displayFontSize = 28;
+int displayFontSize = 16;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Next we specify which unicode blocks from the the Basic Multilingual Plane (BMP) are included in the final font file. //
