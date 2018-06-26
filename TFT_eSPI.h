@@ -21,6 +21,10 @@
 // available and the pins to be used
 #include <User_Setup_Select.h>
 
+#ifndef TAB_COLOUR
+  #define TAB_COLOUR 0
+#endif
+
 // If the frequency is not defined, set a default
 #ifndef SPI_FREQUENCY
   #define SPI_FREQUENCY  20000000
@@ -29,6 +33,14 @@
 // If the frequency is not defined, set a default
 #ifndef SPI_TOUCH_FREQUENCY
   #define SPI_TOUCH_FREQUENCY  2500000
+#endif
+
+// Use GLCD font in error case where user requests a smooth font file
+// that does not exist (this is a temporary fix to stop ESP32 reboot)
+#ifdef SMOOTH_FONT
+  #ifndef LOAD_GLCD
+    #define LOAD_GLCD
+  #endif
 #endif
 
 // Only load the fonts defined in User_Setup.h (to save space)
@@ -99,13 +111,26 @@
     #define DC_D digitalWrite(TFT_DC, HIGH)
   #elif defined (ESP32)
     #if defined (ESP32_PARALLEL)
-      #define DC_C GPIO.out_w1tc = (1 << TFT_DC) // Too fast for ST7735
+      #define DC_C GPIO.out_w1tc = (1 << TFT_DC)
       #define DC_D GPIO.out_w1ts = (1 << TFT_DC)
-      //#define DC_C digitalWrite(TFT_DC, LOW)
-      //#define DC_D digitalWrite(TFT_DC, HIGH)
+
     #else
-      #define DC_C GPIO.out_w1ts = (1 << TFT_DC); GPIO.out_w1tc = (1 << TFT_DC)
-      #define DC_D GPIO.out_w1tc = (1 << TFT_DC); GPIO.out_w1ts = (1 << TFT_DC)
+      #if TFT_DC >= 32
+        #define DC_C GPIO.out1_w1ts.val = (1 << (TFT_DC - 32)); \
+                     GPIO.out1_w1tc.val = (1 << (TFT_DC - 32))
+        #define DC_D GPIO.out1_w1tc.val = (1 << (TFT_DC - 32)); \
+                     GPIO.out1_w1ts.val = (1 << (TFT_DC - 32))
+      #else
+        #if TFT_DC >= 0
+          #define DC_C GPIO.out_w1ts = (1 << TFT_DC); \
+                       GPIO.out_w1tc = (1 << TFT_DC)
+          #define DC_D GPIO.out_w1tc = (1 << TFT_DC); \
+                       GPIO.out_w1ts = (1 << TFT_DC)
+        #else
+          #define DC_C
+          #define DC_D
+        #endif
+      #endif
     #endif
   #else
     #define DC_C GPOC=dcpinmask
@@ -129,8 +154,20 @@
       #define CS_L // The TFT CS is set permanently low during init()
       #define CS_H
     #else
-      #define CS_L GPIO.out_w1ts = (1 << TFT_CS);GPIO.out_w1tc = (1 << TFT_CS)
-      #define CS_H GPIO.out_w1tc = (1 << TFT_CS);GPIO.out_w1ts = (1 << TFT_CS)
+      #if TFT_CS >= 32
+        #define CS_L GPIO.out1_w1ts.val = (1 << (TFT_CS - 32)); \
+                     GPIO.out1_w1tc.val = (1 << (TFT_CS - 32))
+        #define CS_H GPIO.out1_w1tc.val = (1 << (TFT_CS - 32)); \
+                     GPIO.out1_w1ts.val = (1 << (TFT_CS - 32))
+      #else
+        #if TFT_CS >= 0
+          #define CS_L GPIO.out_w1ts = (1 << TFT_CS);GPIO.out_w1tc = (1 << TFT_CS)
+          #define CS_H GPIO.out_w1tc = (1 << TFT_CS);GPIO.out_w1ts = (1 << TFT_CS)
+        #else
+          #define CS_L
+          #define CS_H
+        #endif
+      #endif
     #endif
   #else
     #define CS_L GPOC=cspinmask
@@ -151,9 +188,7 @@
 #ifdef TFT_WR
   #if defined (ESP32)
     #define WR_L GPIO.out_w1tc = (1 << TFT_WR)
-    //#define WR_L digitalWrite(TFT_WR, LOW)
     #define WR_H GPIO.out_w1ts = (1 << TFT_WR)
-    //#define WR_H digitalWrite(TFT_WR, HIGH)
   #else
     #define WR_L GPOC=wrpinmask
     #define WR_H GPOS=wrpinmask
@@ -460,7 +495,7 @@ class TFT_eSPI : public Print {
 
   TFT_eSPI(int16_t _W = TFT_WIDTH, int16_t _H = TFT_HEIGHT);
 
-  void     init(void), begin(void); // Same - begin included for backwards compatibility
+  void     init(uint8_t tc = TAB_COLOUR), begin(uint8_t tc = TAB_COLOUR); // Same - begin included for backwards compatibility
 
   // These are virtual so the TFT_eSprite class can override them with sprite specific functions
   virtual void     drawPixel(uint32_t x, uint32_t y, uint32_t color),
@@ -471,7 +506,9 @@ class TFT_eSPI : public Print {
                    fillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color);
 
   virtual int16_t  drawChar(unsigned int uniCode, int x, int y, int font),
-                   drawChar(unsigned int uniCode, int x, int y);
+                   drawChar(unsigned int uniCode, int x, int y),
+                   height(void),
+                   width(void);
 
   // The TFT_eSprite class inherits the following functions
   void     setWindow(int16_t x0, int16_t y0, int16_t x1, int16_t y1),
@@ -501,6 +538,8 @@ class TFT_eSPI : public Print {
            fillTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t color),
 
            drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color),
+           drawXBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color),
+           drawXBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t fgcolor, uint16_t bgcolor),
            setBitmapColor(uint16_t c, uint16_t b), // For 1bpp sprites
 
            setCursor(int16_t x, int16_t y),
@@ -588,9 +627,7 @@ class TFT_eSPI : public Print {
            drawCentreString(const String& string, int dX, int poY, int font), // Deprecated, use setTextDatum() and drawString()
            drawRightString(const String& string, int dX, int poY, int font);  // Deprecated, use setTextDatum() and drawString()
 
-  int16_t  height(void),
-           width(void),
-           textWidth(const char *string, int font),
+  int16_t  textWidth(const char *string, int font),
            textWidth(const char *string),
            textWidth(const String& string, int font),
            textWidth(const String& string),
@@ -603,10 +640,15 @@ class TFT_eSPI : public Print {
 
   void     getSetup(setup_t& tft_settings); // Sketch provides the instance to populate
 
-  int32_t  cursor_x, cursor_y;
+  int32_t  cursor_x, cursor_y, padX;
   uint32_t textcolor, textbgcolor;
+
   uint32_t bitmap_fg, bitmap_bg;
 
+  uint8_t  textfont,  // Current selected font
+           textsize,  // Current font size multiplier
+           textdatum, // Text reference datum
+           rotation;  // Display rotation (0-3)
 
  private:
 
@@ -631,20 +673,16 @@ class TFT_eSPI : public Print {
 
  protected:
 
-  int32_t  win_xe, win_ye, padX;
+  int32_t  win_xe, win_ye;
 
   uint32_t _init_width, _init_height; // Display w/h as input, used by setRotation()
-  uint32_t _width, _height; // Display w/h as modified by current rotation
+  uint32_t _width, _height;           // Display w/h as modified by current rotation
   uint32_t addr_row, addr_col;
 
   uint32_t fontsloaded;
 
   uint8_t  glyph_ab,  // glyph height above baseline
-           glyph_bb,  // glyph height below baseline
-           textfont,  // Current selected font
-           textsize,  // Current font size multiplier
-           textdatum, // Text reference datum
-           rotation;  // Display rotation (0-3)
+           glyph_bb;  // glyph height below baseline
 
   bool     textwrapX, textwrapY;   // If set, 'wrap' text at right and optionally bottom edge of display
   bool     _swapBytes; // Swap the byte order for TFT pushImage()

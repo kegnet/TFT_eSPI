@@ -209,9 +209,9 @@ TFT_eSPI::TFT_eSPI(int16_t w, int16_t h)
 ** Function name:           begin
 ** Description:             Included for backwards compatibility
 ***************************************************************************************/
-void TFT_eSPI::begin(void)
+void TFT_eSPI::begin(uint8_t tc)
 {
- init();
+ init(tc);
 }
 
 
@@ -219,7 +219,7 @@ void TFT_eSPI::begin(void)
 ** Function name:           init
 ** Description:             Reset, then initialise the TFT display registers
 ***************************************************************************************/
-void TFT_eSPI::init(void)
+void TFT_eSPI::init(uint8_t tc)
 {
 #if !defined (ESP32)
   #ifdef TFT_CS
@@ -307,6 +307,7 @@ void TFT_eSPI::init(void)
     #include "TFT_Drivers/ILI9341_Init.h"
 
 #elif defined (ST7735_DRIVER)
+    tabcolor = tc;
     #include "TFT_Drivers/ST7735_Init.h"
 
 #elif defined (ILI9163_DRIVER)
@@ -318,6 +319,9 @@ void TFT_eSPI::init(void)
 #elif defined (RPI_ILI9486_DRIVER)
     #include "TFT_Drivers/RPI_ILI9486_Init.h"
 
+#elif defined (ILI9486_DRIVER)
+    #include "TFT_Drivers/ILI9486_Init.h"
+
 #elif defined (ILI9481_DRIVER)
     #include "TFT_Drivers/ILI9481_Init.h"
 
@@ -326,6 +330,9 @@ void TFT_eSPI::init(void)
 
 #elif defined (HX8357D_DRIVER)
     #include "TFT_Drivers/HX8357D_Init.h"
+
+#elif defined (ST7789_DRIVER)
+    #include "TFT_Drivers/ST7789_Init.h"
 
 #endif
 
@@ -359,6 +366,9 @@ void TFT_eSPI::setRotation(uint8_t m)
 #elif defined (RPI_ILI9486_DRIVER)
     #include "TFT_Drivers/RPI_ILI9486_Rotation.h"
 
+#elif defined (ILI9486_DRIVER)
+    #include "TFT_Drivers/ILI9486_Rotation.h"
+
 #elif defined (ILI9481_DRIVER)
     #include "TFT_Drivers/ILI9481_Rotation.h"
 
@@ -367,6 +377,9 @@ void TFT_eSPI::setRotation(uint8_t m)
 
 #elif defined (HX8357D_DRIVER)
     #include "TFT_Drivers/HX8357D_Rotation.h"
+
+#elif defined (ST7789_DRIVER)
+    #include "TFT_Drivers/ST7789_Rotation.h"
 
 #endif
 
@@ -1764,8 +1777,8 @@ void TFT_eSPI::fillTriangle ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, in
 ** Function name:           drawBitmap
 ** Description:             Draw an image stored in an array on the TFT
 ***************************************************************************************/
-void TFT_eSPI::drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color) {
-
+void TFT_eSPI::drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color)
+{
   spi_begin();
   inTransaction = true;
 
@@ -1776,6 +1789,54 @@ void TFT_eSPI::drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w
       if (pgm_read_byte(bitmap + j * byteWidth + i / 8) & (128 >> (i & 7))) {
         drawPixel(x + i, y + j, color);
       }
+    }
+  }
+
+  inTransaction = false;
+  spi_end();
+}
+
+
+/***************************************************************************************
+** Function name:           drawXBitmap
+** Description:             Draw an image stored in an XBM array onto the TFT
+***************************************************************************************/
+void TFT_eSPI::drawXBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color)
+{
+  spi_begin();
+  inTransaction = true;
+
+  int32_t i, j, byteWidth = (w + 7) / 8;
+
+  for (j = 0; j < h; j++) {
+    for (i = 0; i < w; i++ ) {
+      if (pgm_read_byte(bitmap + j * byteWidth + i / 8) & (1 << (i & 7))) {
+        drawPixel(x + i, y + j, color);
+      }
+    }
+  }
+
+  inTransaction = false;
+  spi_end();
+}
+
+
+/***************************************************************************************
+** Function name:           drawXBitmap
+** Description:             Draw an XBM image with foreground and background colors
+***************************************************************************************/
+void TFT_eSPI::drawXBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color, uint16_t bgcolor)
+{
+  spi_begin();
+  inTransaction = true;
+
+  int32_t i, j, byteWidth = (w + 7) / 8;
+
+  for (j = 0; j < h; j++) {
+    for (i = 0; i < w; i++ ) {
+      if (pgm_read_byte(bitmap + j * byteWidth + i / 8) & (1 << (i & 7)))
+           drawPixel(x + i, y + j,   color);
+      else drawPixel(x + i, y + j, bgcolor);
     }
   }
 
@@ -3176,7 +3237,7 @@ void TFT_eSPI::pushColors(uint16_t *data, uint32_t len, bool swap)
 // Bresenham's algorithm - thx wikipedia - speed enhanced by Bodmer to use
 // an efficient FastH/V Line draw routine for line segments of 2 pixels or more
 
-#if defined (RPI_ILI9486_DRIVER) || defined (ESP32) || defined (RPI_WRITE_STROBE)
+#if defined (RPI_ILI9486_DRIVER) || defined (ESP32) || defined (RPI_WRITE_STROBE) || defined (HX8357D_DRIVER)
 
 void TFT_eSPI::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint32_t color)
 {
@@ -4115,9 +4176,9 @@ int16_t TFT_eSPI::drawString(const char *string, int poX, int poY, int font)
     }
     // Check coordinates are OK, adjust if not
     if (poX < 0) poX = 0;
-    if (poX+cwidth>_width)   poX = _width - cwidth;
+    if (poX+cwidth > width())   poX = width() - cwidth;
     if (poY < 0) poY = 0;
-    if (poY+cheight-baseline>_height) poY = _height - cheight;
+    if (poY+cheight-baseline> height()) poY = height() - cheight;
   }
 
 
