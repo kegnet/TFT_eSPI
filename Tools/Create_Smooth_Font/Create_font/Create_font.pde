@@ -112,7 +112,7 @@ String fontType = ".ttf";            //SPIFFS does not accept underscore in file
 int fontNumber = -1; // << Use [Number] in brackets from the fonts listed in console window
 
 // Define the font size in points for the created font file
-int  fontSize = 30;
+int  fontSize = 20;
 
 // Font size to use in the Processing sketch display window that pops up (can be different to above)
 int displayFontSize = 16;
